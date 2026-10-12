@@ -28,15 +28,15 @@ PHONE_STATUS_PATH = "/cgi-bin/J100WebServer.cgi?Operation=34"
 RESTART_PATH = "/cgi-bin/J100WebServer.cgi?Operation=4"
 FACTORY_RESET_PATH = "/cgi-bin/J100WebServer.cgi?Operation=5"
 PASSWORD_CHANGE_PATH = "/cgi-bin/J100WebServer.cgi?Operation=212"
-CONFIGURATION_SAVE_PATH = "/cgi-bin/J100WebServer.cgi?Operation=323"
+CONFIGURATION_SAVE_PATH = "/cgi-bin/J100WebServer.cgi?Operation=3213"
 DEFAULT_USERNAME = "admin"
 DEFAULT_PASSWORD = "27238"
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9~!@#$%^&*_=+`|\\(){}\[\]:;'<>.,?/]{6,31}$")
 PASSWORD_SPECIAL_CHARACTERS = "~!@#$%^&*_-+=`|\\(){}[]:;'<>.,?/"
 PASSWORD_CHANGE_IV = bytes([185, 81, 2, 73, 200, 160, 146, 101, 228, 36, 138, 96, 102, 0, 129, 7])
 SERVER_CONFIGURATION_FIELDS = {
-    "HTTPSRVR": "FileServerTlsDownloadList",
-    "TLSSRVR": "FileServerHttpDownloadList",
+    "HTTPSRVR": "FileServerHttpDownloadList",
+    "TLSSRVR": "FileServerTlsDownloadList",
     "HTTPDIR": "DirectoryForHttpDownload",
     "TLSDIR": "DirectoryForTlsDownload",
     "HTTPPORT": "PortForHttpDownload",
@@ -87,6 +87,12 @@ class _Protocol:
         if not values:
             raise ValueError("at least one server setting must be supplied")
         return {"RequiredAction": "-1", **values, "XToken": session_id}
+
+    @staticmethod
+    def _assert_configuration_saved(response: Any) -> None:
+        _Protocol._assert_ok(response, "server configuration")
+        if response.headers.get("Session") or "sessionExpired" in response.text or 'id="logout"' in response.text:
+            raise AuthenticationError("server configuration session was rejected by the phone")
 
     def digest(self, nonce: str) -> str:
         return hashlib.sha256((self.config.password + nonce).encode("utf-8")).hexdigest()
@@ -214,7 +220,7 @@ class J100Client(_Protocol):
             data=self._server_configuration_payload(settings, session_id),
             headers=self.configuration_save_headers,
         )
-        self._assert_ok(response, "server configuration")
+        self._assert_configuration_saved(response)
 
     def restart(self, force: bool = False, wait: bool = True, timeout: float = 120.0, poll_interval: float = 2.0) -> RestartResult:
         return self._restart_or_reset(RESTART_PATH, "restart", force, wait, timeout, poll_interval, allow_busy=force)
@@ -354,7 +360,7 @@ class AsyncJ100Client(_Protocol):
             data=self._server_configuration_payload(settings, session_id),
             headers=self.configuration_save_headers,
         )
-        self._assert_ok(response, "server configuration")
+        self._assert_configuration_saved(response)
 
     async def restart(self, force: bool = False, wait: bool = True, timeout: float = 120.0, poll_interval: float = 2.0) -> RestartResult:
         return await self._restart_or_reset(RESTART_PATH, "restart", force, wait, timeout, poll_interval, allow_busy=force)
