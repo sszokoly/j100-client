@@ -1,0 +1,38 @@
+[project]
+name = "j100-client"
+version = "0.1.0"
+description = "Python client and CLI for Avaya J100 phone Web UI operations"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "cryptography>=3.4",
+    "click>=8.0",
+    "requests>=2.25",
+]
+
+[project.optional-dependencies]
+httpx = ["httpx>=0.23"]
+httpx2 = ["httpx2"]
+all = ["httpx2", "httpx>=0.23"]
+test = ["pytest>=7.0"]
+lint = ["ruff>=0.1"]
+
+[project.scripts]
+j100-client = "j100_client.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+ignore = ["FA100", "UP006", "UP035", "UP045"]
+
+[tool.setuptools.packages.find]
+include = ["j100_client*"]
