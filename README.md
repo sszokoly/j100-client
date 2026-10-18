@@ -4,8 +4,7 @@ Python 3.9+ client and CLI for the Avaya J100 phone Web UI.
 
 The current MVP supports authenticated verification checks, password bootstrap after a
 factory reset, restart, factory reset, and provisioning download server
-configuration. Packet capture, live logs, and other Web UI operations are not
-implemented yet.
+configuration, etc. For the complete list of implemented features use --help.
 
 Run the CLI through its installed command or as a Python module:
 
