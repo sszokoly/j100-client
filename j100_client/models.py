@@ -15,13 +15,14 @@ def normalize_base_url(host: str) -> str:
     parsed = urlsplit(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("phone address must be a host or HTTP(S) URL")
-    return "{}://{}{}".format(parsed.scheme, parsed.netloc, parsed.path.rstrip("/"))
+    return "{}://{}{}".format(
+        parsed.scheme, parsed.netloc, parsed.path.rstrip("/")
+    )
 
 
 @dataclass(frozen=True)
 class J100Config:
     host: str
-    username: str = "admin"
     password: str = ""
     verify: Union[bool, str] = True
     timeout: float = 10.0
@@ -36,3 +37,22 @@ class RestartResult:
     accepted: bool
     completed: bool
     observed_unavailable: bool
+
+
+@dataclass(frozen=True)
+class PhoneReport:
+    content: bytes
+    filename: str
+
+
+@dataclass(frozen=True)
+class PacketCapture:
+    path: str
+
+
+@dataclass(frozen=True)
+class SipAccountStatus:
+    registration_status: str
+    sip_user_id: str
+    sip_domain: str
+    sip_proxy_server: str

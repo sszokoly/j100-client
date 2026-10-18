@@ -2,6 +2,7 @@
 
 import asyncio
 import importlib
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -13,6 +14,7 @@ class Response:
     status_code: int
     text: str
     headers: Dict[str, str]
+    content: bytes = b""
 
 
 def select_backend() -> str:
@@ -28,7 +30,13 @@ def select_backend() -> str:
 
 
 class SyncTransport:
-    def __init__(self, base_url: str, verify: Any, timeout: float, backend: Optional[str] = None):
+    def __init__(
+        self,
+        base_url: str,
+        verify: Any,
+        timeout: float,
+        backend: Optional[str] = None,
+    ):
         self.base_url = base_url
         self.backend = backend or select_backend()
         self._timeout = timeout
@@ -37,7 +45,9 @@ class SyncTransport:
             self._client = self._module.Session()
             self._verify = verify
             if verify is False:
-                self._module.packages.urllib3.disable_warnings(self._module.packages.urllib3.exceptions.InsecureRequestWarning)
+                self._module.packages.urllib3.disable_warnings(
+                    self._module.packages.urllib3.exceptions.InsecureRequestWarning
+                )
         else:
             self._client = self._module.Client(verify=verify, timeout=timeout)
 
@@ -45,12 +55,53 @@ class SyncTransport:
         url = self.base_url + path
         try:
             if self.backend == "requests":
-                response = self._client.request(method, url, verify=self._verify, timeout=self._timeout, **kwargs)
+                response = self._client.request(
+                    method,
+                    url,
+                    verify=self._verify,
+                    timeout=self._timeout,
+                    **kwargs,
+                )
             else:
                 response = self._client.request(method, url, **kwargs)
         except Exception as error:
-            raise TransportError("unable to communicate with phone; check address and TLS settings") from error
-        return Response(response.status_code, response.text, dict(response.headers))
+            raise TransportError(
+                "unable to communicate with phone; check address and TLS settings"
+            ) from error
+        return Response(
+            response.status_code,
+            response.text,
+            dict(response.headers),
+            response.content,
+        )
+
+    @contextmanager
+    def stream(self, method: str, path: str, **kwargs: Any):
+        url = self.base_url + path
+        try:
+            if self.backend == "requests":
+                response = self._client.request(
+                    method, url, verify=self._verify, stream=True, **kwargs
+                )
+                try:
+                    yield (
+                        response.status_code,
+                        dict(response.headers),
+                        response.iter_content(65536),
+                    )
+                finally:
+                    response.close()
+            else:
+                with self._client.stream(method, url, **kwargs) as response:
+                    yield (
+                        response.status_code,
+                        dict(response.headers),
+                        response.iter_bytes(),
+                    )
+        except Exception as error:
+            raise TransportError(
+                "unable to communicate with phone; check address and TLS settings"
+            ) from error
 
     def cookie(self, name: str) -> Optional[str]:
         return self._client.cookies.get(name)
@@ -60,7 +111,13 @@ class SyncTransport:
 
 
 class AsyncTransport:
-    def __init__(self, base_url: str, verify: Any, timeout: float, backend: Optional[str] = None):
+    def __init__(
+        self,
+        base_url: str,
+        verify: Any,
+        timeout: float,
+        backend: Optional[str] = None,
+    ):
         self.base_url = base_url
         self.backend = backend or select_backend()
         self._timeout = timeout
@@ -70,9 +127,13 @@ class AsyncTransport:
         if self.backend == "requests":
             self._client = self._module.Session()
             if verify is False:
-                self._module.packages.urllib3.disable_warnings(self._module.packages.urllib3.exceptions.InsecureRequestWarning)
+                self._module.packages.urllib3.disable_warnings(
+                    self._module.packages.urllib3.exceptions.InsecureRequestWarning
+                )
         else:
-            self._client = self._module.AsyncClient(verify=verify, timeout=timeout)
+            self._client = self._module.AsyncClient(
+                verify=verify, timeout=timeout
+            )
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Response:
         url = self.base_url + path
@@ -80,13 +141,66 @@ class AsyncTransport:
             if self.backend == "requests":
                 async with self._lock:
                     response = await asyncio.to_thread(
-                        self._client.request, method, url, verify=self._verify, timeout=self._timeout, **kwargs
+                        self._client.request,
+                        method,
+                        url,
+                        verify=self._verify,
+                        timeout=self._timeout,
+                        **kwargs,
                     )
             else:
                 response = await self._client.request(method, url, **kwargs)
         except Exception as error:
-            raise TransportError("unable to communicate with phone; check address and TLS settings") from error
-        return Response(response.status_code, response.text, dict(response.headers))
+            raise TransportError(
+                "unable to communicate with phone; check address and TLS settings"
+            ) from error
+        return Response(
+            response.status_code,
+            response.text,
+            dict(response.headers),
+            response.content,
+        )
+
+    @asynccontextmanager
+    async def stream(self, method: str, path: str, **kwargs: Any):
+        url = self.base_url + path
+        try:
+            if self.backend == "requests":
+                response = await asyncio.to_thread(
+                    self._client.request,
+                    method,
+                    url,
+                    verify=self._verify,
+                    stream=True,
+                    **kwargs,
+                )
+
+                async def chunks():
+                    iterator = response.iter_content(65536)
+                    while True:
+                        chunk = await asyncio.to_thread(next, iterator, None)
+                        if chunk is None:
+                            break
+                        if chunk:
+                            yield chunk
+
+                try:
+                    yield response.status_code, dict(response.headers), chunks()
+                finally:
+                    await asyncio.to_thread(response.close)
+            else:
+                async with self._client.stream(
+                    method, url, **kwargs
+                ) as response:
+                    yield (
+                        response.status_code,
+                        dict(response.headers),
+                        response.aiter_bytes(),
+                    )
+        except Exception as error:
+            raise TransportError(
+                "unable to communicate with phone; check address and TLS settings"
+            ) from error
 
     async def cookie(self, name: str) -> Optional[str]:
         if self.backend == "requests":

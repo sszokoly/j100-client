@@ -10,7 +10,8 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+dist/*.whl
+dist/*.tar.gz
 downloads/
 eggs/
 .eggs/
@@ -221,3 +222,4 @@ __marimo__/
 tests/*
 openspec/*
 .opencode/*
+data/*

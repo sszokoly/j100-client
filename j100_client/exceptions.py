@@ -18,7 +18,7 @@ class ProtocolError(J100Error):
 
 
 class PhoneBusyError(J100Error):
-    """The phone has an active call and restart was not forced."""
+    """The phone has an active call and cannot perform the operation."""
 
 
 class RestartTimeoutError(J100Error):

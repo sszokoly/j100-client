@@ -28,7 +28,7 @@ build-backend = "setuptools.build_meta"
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 120
+line-length = 80
 target-version = "py39"
 
 [tool.ruff.lint]
