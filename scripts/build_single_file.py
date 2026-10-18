@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 import zlib
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -266,8 +267,6 @@ def wrap_launcher(
     lines: List[str] = []
     if shebang:
         lines.append(f"#!{shebang}")
-    if validity is not None:
-        lines.append(f"# VALIDITY: {validity!r}")
     payload_description = (
         "The flat j100-client source is zlib-compressed and base64-encoded\n"
         "below. Regenerate with scripts/build_single_file.py.\n\n"
@@ -282,9 +281,16 @@ def wrap_launcher(
             *payload_description.splitlines(),
             *author_description.splitlines(),
             '"""',
-            "import base64",
         ]
     )
+    if validity is not None:
+        lines.append(
+            "# VALIDITY: "
+            + datetime.fromtimestamp(validity, timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+        )
+    lines.append("import base64")
     lines.extend(["import sys", "import traceback", "import zlib", "", ""])
     lines.append('COMPRESSED_SCRIPT = """\\')
     lines.extend(blob_lines)
