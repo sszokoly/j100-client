@@ -225,7 +225,7 @@ to Manual:
 uv run j100-client configure-sip-global --password 'your-password' \
   --SIPDOMAIN example.com \
   --ENABLE_PPM_SOURCED_SIPPROXYSRVR No \
-  --SIP_CONTROLLER_LIST '192.251.199.35:5061;transport=tls' 10.10.10.1
+  --SIP_CONTROLLER_LIST '192.168.1.10:5061;transport=tls' 10.10.10.1
 ```
 
 Use `--automatic-sip-proxy` to restore Automatic proxy discovery. It cannot be
@@ -239,7 +239,7 @@ applied and the phone has rebooted:
 
 ```bash
 uv run j100-client sip-login --password 'admin-password' \
-  --SIPUSERNAME '66695@example.com' --SIPPASSWORD 'sip-password' 10.10.10.1
+  --SIPUSERNAME '1000@example.com' --SIPPASSWORD 'sip-password' 10.10.10.1
 ```
 
 `sip-login` rejects phones with a pending reboot, automatic proxy policy, no
